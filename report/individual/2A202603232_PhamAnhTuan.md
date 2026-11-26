@@ -1,101 +1,108 @@
 # Báo cáo Day 13 — Phạm Anh Tuấn, 2A202603232
 
-## 1. Kết quả và phạm vi kiểm chứng
+## 1. Kết quả sau cập nhật nhãn
 
-Task `D13-2A202603232`, task/job 38, CVAT local 2.82.1; xuất ngày 26/11/2026 trên Windows qua Chrome. Chưa ghi nhận phiên bản Chrome và MSSV người kiểm chéo.
+Task `D13-2A202603232`, task/job 38 trên CVAT local 2.82.1. Bản xuất ngày 26/11/2026 được tải lại sau khi chỉnh nhãn; môi trường Windows và Chrome. Chưa có thông tin người kiểm chéo.
 
-Bản xuất có **198 cuboid dạng shape, 0 track**: 175 Car, 9 Bus, 14 Pedestrian. Tất cả có metadata `source=manual`; trường này không chứng minh nhãn được vẽ thủ công. Nhãn có pipeline AI hỗ trợ, chưa được nghiệm thu từng hộp.
+Bản mới có **126 cuboid dạng shape, 0 track**: 5 Bus, 98 Car, 8 Cyclist, 11 Pedestrian, 4 Truck.
 
-Phiếu tự kiểm khớp SHA-256 của bảng A, có **117/198 hộp mang cảnh báo (59,1%)**, gồm 27 hộp rỗng. Tính nhất quán của bảng đã được kiểm; class, yaw, chồng nhãn và hộp rỗng còn cần đối chiếu ảnh.
+Phiếu tự kiểm có **40/126 hộp mang cảnh báo** (31.7%). Có 2 hộp rỗng. SHA-256 trong phiếu khớp bảng A hiện tại. Cảnh báo là gợi ý rà soát, không tự động kết luận nhãn sai.
 
-| Frame | Cuboid | Có cảnh báo |
+| Frame | Cuboid | Hộp có cảnh báo |
 |---|---:|---:|
-| s01f18 | 9 | 2 |
-| s01f52 | 18 | 11 |
-| s02f07 | 32 | 20 |
-| s02f41 | 21 | 12 |
-| s03f06 | 23 | 16 |
-| s03f46 | 20 | 16 |
-| s04f15 | 23 | 11 |
-| s04f49 | 19 | 13 |
-| s05f14 | 20 | 10 |
-| s05f45 | 13 | 6 |
+| s01f18 | 9 | 3 |
+| s01f52 | 20 | 10 |
+| s02f07 | 20 | 6 |
+| s02f41 | 7 | 1 |
+| s03f06 | 15 | 7 |
+| s03f46 | 5 | 0 |
+| s04f15 | 15 | 5 |
+| s04f49 | 10 | 5 |
+| s05f14 | 13 | 2 |
+| s05f45 | 12 | 1 |
 
-s01f18 ít nhất với 9 hộp. Chưa thể phân biệt cảnh ít vật với bỏ sót chỉ từ số lượng nhãn.
+Ít hộp nhất: s03f46 (5 hộp/frame). Chưa thể suy ra ít vật hay bỏ sót chỉ từ số lượng nhãn.
 
-Quy trình kiểm CVAT: xoay, dời, chuyển góc nhìn từ trên xuống để đọc cảnh. Chọn Cuboid ở chế độ Shape và kiểm Top/Side/Front khi chỉnh hộp. Bật Cuboid orientation để kiểm yaw, dùng preview với calibration VF để đối chiếu camera. Đây là quy trình nghiệm thu, không phải xác nhận đã kiểm mọi hộp.
+Quy trình kiểm CVAT: đổi góc nhìn, xoay và dời cảnh; chỉnh Cuboid ở chế độ Shape và đối chiếu Top/Side/Front. Bật Cuboid orientation để kiểm hướng; kiểm hình chiếu trên camera. Việc chụp ảnh không thay thế nghiệm thu từng hộp.
 
 ## 2. Đọc frame và hệ tọa độ
 
-Theo `docs/COORDINATES.md`: +x sang trái, +y ra sau, +z lên trên; phía trước là −y. Mặt đường tham chiếu khoảng −1,7 m. Không suy ra cạnh của ảnh Top khi chưa biết góc nhìn.
+Theo tài liệu repo: +x sang trái, +y ra sau, +z lên trên; phía trước xe là −y, mặt đường tham chiếu khoảng −1,7 m. Hai frame đầu có ảnh `t1-s01f18-3d.png`, `t1-s01f18-top.png`, `t1-s01f52-3d.png`, `t1-s01f52-top.png`. Ảnh Top tập trung vào cuboid đang chọn, chưa phải toàn cảnh BEV có chú thích trục.
 
-| Hai frame đầu | Class trong nhãn | Khoảng cách tâm xa nhất đã gán |
+| Frame | Class trong nhãn | Tâm xa nhất đã gán (m) |
 |---|---|---:|
-| s01f18 | Bus, Car | 49,64 m |
-| s01f52 | Car, Pedestrian | 48,10 m |
+| s01f18 | Bus, Car | 62.08 |
+| s01f52 | Car, Cyclist, Pedestrian | 50.75 |
 
-Các con số trên lấy từ bảng A, không khẳng định đó là vật xa nhất có thể nhận biết trong cảnh. Chưa có ảnh 3D/Top để xác nhận độ dốc đường, vật phía sau/hai bên và cụm khó đọc. Tám frame còn lại được thống kê ở mục 1; chưa có bằng chứng đọc cảnh thủ công.
-
-Camera hỗ trợ phân biệt diện mạo, màu sắc và ngữ cảnh của vật. LiDAR cung cấp vị trí theo mét, cấu trúc cao độ và phân bố điểm theo chiều sâu. Đây là đặc tính cảm biến, chưa phải các quan sát riêng đã xác nhận trên hai frame.
+Tám frame còn lại có ảnh `frame-<frame>-3d.png`, tương ứng các tên frame trong bảng mục 1. Chưa xác nhận độ dốc đường, vật bị bỏ sót và các cụm khó đọc. Camera hỗ trợ nhận diện diện mạo, màu và ngữ cảnh; LiDAR cung cấp vị trí theo mét, cao độ và phân bố điểm theo chiều sâu.
 
 ## 3. Ba cuboid đại diện
 
+Các mẫu lấy từ bản xuất mới. `idx` là số thứ tự trong bảng A, có thể khác số ID hiển thị trên CVAT.
+
 | Cuboid | Dài × rộng × cao (m) | Yaw (°) | Ground gap (m) | Cảnh báo |
 |---|---|---:|---:|---|
-| s01f18 #1 Car | 4,626 × 1,968 × 1,645 | 269,1 | 0,04 | Chồng hộp #6 |
-| s01f18 #5 Bus | 13,637 × 2,756 × 3,158 | 272,0 | 0,09 | Không có |
-| s01f52 #15 Pedestrian | 0,650 × 0,650 × 1,145 | 0,0 | 0,14 | Không có |
+| s01f18 #1 Car | 4.630 × 1.950 × 1.693 | 272.2 | 0.04 | Không có |
+| s01f18 #4 Bus | 13.637 × 2.756 × 3.158 | 272.0 | 0.09 | Không có |
+| s01f52 #11 Pedestrian | 0.650 × 0.650 × 1.720 | 0.0 | 0.17 | Không có |
 
-Mẫu được lấy nguyên từ nhãn đã tải, chưa được xác nhận bằng Top/Side/Front và camera. Không có cảnh báo không đồng nghĩa nhãn đúng.
+Các mẫu chưa được xác nhận đầy đủ bằng cả Top/Side/Front và camera. Khi so bảng 4.3 cần phân biệt sedan/SUV, người lớn/trẻ em và tư thế. Không có cảnh báo không đồng nghĩa nhãn đúng. Chưa có biên bản hiệu chuẩn với lớp hoặc danh sách vật chủ động bỏ qua.
 
-Theo bảng 4.3 trong guideline, Car mẫu rộng và cao vượt khoảng sedan (rộng 1,70–1,90 m; cao 1,40–1,60 m); cần phân biệt sedan với SUV/van trước khi kết luận. Pedestrian mẫu thấp hơn người lớn (1,50–1,95 m), trong khi dài/rộng vượt khoảng trẻ em (0,3–0,6 m); cần kiểm tư thế và class.
+## 4. Hiện tượng chất lượng
 
-Chưa có biên bản hiệu chuẩn với lớp, kiểm chéo hoặc danh sách vật chủ động bỏ qua. Không thể kết luận không có vật bỏ sót từ bản xuất này.
+| Hiện tượng | Giả thuyết và giới hạn kiểm chứng |
+|---|---|
+| Bóng che | Vật gần có thể che vật xa; cần đối chiếu vùng thiếu điểm với camera |
+| Thưa ở xa | Số điểm phụ thuộc khoảng cách, kích thước và che khuất; xem mẫu ở mục 5 |
+| Phản xạ thấp | Hộp ít điểm chưa đủ chứng minh phản xạ thấp; phải loại trừ hộp sai vị trí |
+| Điểm lạ | Có thể là nhiễu hoặc điểm của vật khác; không mở hộp chỉ để bao điểm rời |
 
-## 4. Bốn hiện tượng chất lượng
+Chưa có bốn ảnh chuyên biệt xác nhận các hiện tượng trên. Không dùng tên hiện tượng để đặt cho ảnh chưa được kiểm chứng.
 
-| Hiện tượng | Bằng chứng và giới hạn | Giả thuyết cần kiểm |
-|---|---|---|
-| Bóng che | Chưa có ảnh minh chứng | Vật gần che vật xa; kiểm vùng thiếu điểm cùng camera |
-| Thưa ở xa | Số điểm tại mục 5 | Khoảng cách làm giảm mật độ; cũng chịu ảnh hưởng của kích thước, che khuất và sai hộp |
-| Phản xạ thấp | 27 hộp rỗng chưa đủ xác định nguyên nhân | Phản xạ thấp, sai vị trí hoặc nhãn vật không tồn tại đều cần được xem xét |
-| Điểm lạ | Chưa có ảnh xác nhận outlier | Nhiễu hoặc điểm của vật khác; không mở hộp chỉ để bao mọi điểm rời |
+## 5. Số liệu và tự kiểm
 
-Các nguyên nhân trên là giả thuyết, không phải kết luận quan sát đã kiểm chứng.
-
-## 5. Số liệu cuboid và tự kiểm
-
-`dist_m = √(x²+y²)`, `r = √(x²+y²+z²)`, `z đáy = z − h/2`. Số lấy từ bảng A, có sai số làm tròn.
+`dist_m = √(x²+y²)`, `r = √(x²+y²+z²)`, `z đáy = z − h/2`; số được tính từ bảng A đã làm tròn.
 
 | Cuboid | z (m) | h (m) | z đáy (m) | dist_m (m) | r (m) | yaw (°) |
 |---|---:|---:|---:|---:|---:|---:|
-| s01f18 #1 Car | -0,881 | 1,645 | -1,703 | 11,27 | 11,302 | 269,1 |
-| s01f18 #5 Bus | -0,397 | 3,158 | -1,976 | 27,84 | 27,839 | 272,0 |
-| s01f52 #15 Pedestrian | -0,727 | 1,145 | -1,299 | 9,74 | 9,766 | 0,0 |
+| s01f18 #1 Car | -0.760 | 1.693 | -1.606 | 25.80 | 25.810 | 272.2 |
+| s01f18 #4 Bus | -0.397 | 3.158 | -1.976 | 27.84 | 27.839 | 272.0 |
+| s01f52 #11 Pedestrian | -0.326 | 1.720 | -1.186 | 13.68 | 13.686 | 0.0 |
 
-Gần nhất: s04f15 #1 Car, dist_m = 1,52 m, r = 1,696 m. Xa nhất: s04f49 #18 Car, dist_m = 49,85 m, r = 49,863 m. Do làm tròn các cột độc lập, r tính lại có thể thấp hơn dist_m đã làm tròn vài milimét.
+Gần nhất: s03f06 #5 Car, dist_m = 3.13 m, r = 3.128 m.
 
-Đáy gần −1,7 m chỉ phù hợp mặt đường tham chiếu; ground gap trong phiếu tự kiểm dùng ước lượng đường cục bộ. Chưa xác nhận bằng mắt hộp chạm đường. Car mẫu có yaw gần 270° nhưng tâm y dương nên nằm phía sau; không được gọi là xe cùng chiều phía trước chỉ dựa vào yaw. Chưa có cặp xe cùng/ngược chiều được xác nhận trên camera.
+Xa nhất: s04f49 #10 Bus, dist_m = 108.81 m, r = 108.813 m.
+
+Ground gap trong phiếu dùng mặt đường cục bộ; đáy gần −1,7 m chỉ phù hợp mốc tham chiếu. Chưa xác nhận cặp xe cùng/ngược chiều bằng camera.
 
 | Car | dist_m (m) | points_in |
 |---|---:|---:|
-| s03f06 #16 | 5,31 | 448 |
-| s03f06 #6 | 14,97 | 603 |
-| s02f07 #9 | 25,45 | 200 |
-| s02f07 #19 | 40,55 | 21 |
+| s03f46 #4 Car | 4.58 | 2556 |
+| s03f06 #4 Car | 15.00 | 715 |
+| s02f07 #3 Car | 25.45 | 200 |
+| s05f45 #2 Car | 40.94 | 119 |
 
-Trong hai mẫu cuối, khoảng cách tăng khoảng 1,59 lần còn số điểm giảm còn 10,5%. Bốn mẫu không giảm đơn điệu: hộp 14,97 m có nhiều điểm hơn hộp 5,31 m. Không thể coi khoảng cách là nguyên nhân duy nhất. Mốc bài học cho Car là khoảng 1968/718/214/72 điểm ở các khoảng 0–10/10–20/20–30/30–40 m, chỉ để tham khảo vì diện tích và che khuất khác nhau.
+Số điểm trong hộp chưa chuẩn hóa theo kích thước và che khuất. Mốc tham khảo bài học cho Car là 1968/718/214/72 điểm ở khoảng 0–10/10–20/20–30/30–40 m; không dùng để tự động loại nhãn.
 
-s01f18 #1 bị cảnh báo chồng #6; cần kiểm có cùng một vật hay không. Lần xuất phục vụ báo cáo không sửa annotation trên CVAT. Chưa có bằng chứng hai cuboid đã chỉnh sau preview hoặc đối chiếu số liệu với bạn kiểm chéo. Giữ cảnh báo để rà soát, không coi là đã chấp nhận nhãn.
+Các cảnh báo cần rà soát trong bản mới:
 
-## 6. Ý nghĩa nhãn, AI và giới hạn
+| Cuboid | Cảnh báo |
+|---|---|
+| s01f18 #7 Car | length=1.59 ngoài khoảng 3.0–6.0 của Car; width=0.90 ngoài khoảng 1.4–2.3 của Car; height=1.04 ngoài khoảng 1.2–2.3 của Car |
+| s01f18 #8 Car | length=1.38 ngoài khoảng 3.0–6.0 của Car; width=4.05 ngoài khoảng 1.4–2.3 của Car; length < width: mũi tên yaw có dọc thân xe không? |
+| s01f18 #9 Car | length=1.03 ngoài khoảng 3.0–6.0 của Car; width=4.70 ngoài khoảng 1.4–2.3 của Car; length < width: mũi tên yaw có dọc thân xe không? |
+| s01f52 #1 Car | chồng lên hộp 13 (mỗi vật 1 hộp) |
+| s01f52 #2 Car | 71 điểm sát ngay ngoài mép (quá chật, hay vật bên cạnh?) |
+| s01f52 #6 Car | đáy thấp hơn mặt đường 0.27 m (chìm?); chồng lên hộp 14 (mỗi vật 1 hộp) |
 
-Nhãn 3D dùng mét vì biểu diễn vị trí và kích thước trong không gian cảm biến, không phụ thuộc riêng vào độ phân giải ảnh. Vật ít điểm cần quy tắc về độ chắc chắn để tránh biến suy đoán thiếu bằng chứng thành nhãn huấn luyện.
+Bản trước có 198 hộp và 117 hộp cảnh báo; bản mới có 126 hộp và 40 hộp cảnh báo. Vì có thêm/xóa/đổi nhãn, idx có thể đổi; không suy diễn thao tác sửa từng vật chỉ từ hai tổng số. Chưa có biên bản kiểm chéo.
 
-- Công cụ: pipeline AI hỗ trợ gán cuboid; Codex hỗ trợ xuất dữ liệu, kiểm bảng và soạn báo cáo.
-- Yêu cầu chính: tải nhãn task cá nhân, viết báo cáo theo repo, commit và push.
-- Cách dùng: giữ số liệu thật và cảnh báo, công khai phần chưa kiểm thủ công; không coi metadata `manual` là bằng chứng không dùng AI.
+## 6. Ý nghĩa nhãn và giới hạn
 
-Nguồn: `submission/D13-2A202603232-bangA.csv`, `submission/D13-2A202603232-tukiem.csv` và tài liệu guideline/tọa độ của repo. JSON API lưu local tại `work/cvat-export/D13-2A202603232-task38.json`, không đưa lên repo công khai.
+Nhãn 3D dùng mét vì biểu diễn vị trí và kích thước trong không gian cảm biến. Vật thưa điểm cần quy tắc về độ chắc chắn để tránh biến suy đoán thiếu bằng chứng thành nhãn huấn luyện.
 
-Báo cáo phản ánh số liệu và tình trạng chất lượng hiện tại. Còn thiếu 11 ảnh minh chứng, ZIP ảnh LMS và kiểm chéo; chưa đủ cơ sở khẳng định hoàn tất toàn bộ yêu cầu thực hành.
+Nguồn: `submission/D13-2A202603232-bangA.csv`, `submission/D13-2A202603232-tukiem.csv` và bản JSON API lưu local tại `work/cvat-export/D13-2A202603232-task38.json`.
+
+Đã chụp lại 10 frame cùng hai góc Top của hai frame đầu, đóng gói trong `work/K5-L23-DAY13-2A202603232-images.zip`. Bản dữ liệu nhãn và hai bảng được nén riêng thành `work/D13-2A202603232-labeled-data.zip`. Ảnh và ZIP giữ local, không đưa lên repo công khai.
+
+Bộ ảnh hiện ghi nhận trạng thái nhãn mới; chưa thay thế đủ 11 ảnh chuyên biệt theo SUBMISSION.md (còn ba ảnh mẫu và bốn ảnh hiện tượng). Chưa hoàn tất kiểm chéo hoặc nghiệm thu toàn bộ hộp.
